@@ -1,0 +1,7 @@
+id=uid_audit
+name=UID Audit
+version=1.0.0
+versionCode=1
+priority=50
+description=记录每次 setresuid 的 uid 变化，用于演示 ksuhook 注入包
+author=ksuhook example

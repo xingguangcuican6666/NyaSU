@@ -1,0 +1,9 @@
+# 每个 [[hook]] 打在一个 KernelSU 自己的函数上。
+# order 越小越先执行；返回值非 0 会短路，原函数不再运行。
+
+[[hook]]
+id = "audit_setresuid"
+target = "ksu_handle_setresuid"
+entry = "uid_audit_on_setresuid"
+mode = "inject"
+order = 10
