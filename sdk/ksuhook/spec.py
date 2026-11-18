@@ -46,6 +46,23 @@ def _req(table: dict[str, Any], key: str, where: str) -> Any:
     return table[key]
 
 
+def _int_field(table: dict[str, Any], key: str, default: int, where: str) -> int:
+    """把 `versionCode` / `priority` / `order` 这类数字字段读成 int。
+
+    这些字段来自手写的 module.prop 与 hooks.toml，写错时必须是可读的
+    `SpecError`，而不是让 `int()` 的 ValueError 直接把 traceback 甩给用户。
+    """
+    if key not in table:
+        return default
+    raw = table[key]
+    if isinstance(raw, bool):
+        raise SpecError(f"字段 '{key}' 需要整数，得到布尔值", where)
+    try:
+        return int(raw)
+    except (TypeError, ValueError) as exc:
+        raise SpecError(f"字段 '{key}' 需要整数，得到 {raw!r}", where) from exc
+
+
 def _ident(value: str, where: str, what: str = "标识符") -> str:
     if not VALID_IDENT.match(value):
         raise SpecError(f"{what} '{value}' 不是合法的 C 标识符", where)
@@ -122,7 +139,7 @@ def parse_module(root: Path) -> Module:
         mode = str(item.get("mode", "inject"))
         if mode not in MODES:
             raise SpecError(f"mode 必须是 {MODES} 之一", f"hook {hook_id}")
-        order = int(item.get("order", 100))
+        order = _int_field(item, "order", 100, f"hook {hook_id}")
         source = root / str(item["source"]) if "source" in item else None
         if source is not None and not source.is_file():
             raise SpecError(f"source '{item['source']}' 不存在", f"hook {hook_id}")
@@ -167,8 +184,8 @@ def parse_module(root: Path) -> Module:
         id=module_id,
         name=str(_req(props, "name", where_prop)),
         version=str(_req(props, "version", where_prop)),
-        version_code=int(props.get("versionCode", "1")),
-        priority=int(props.get("priority", "50")),
+        version_code=_int_field(props, "versionCode", 1, where_prop),
+        priority=_int_field(props, "priority", 50, where_prop),
         description=str(props.get("description", "")),
         author=str(props.get("author", "")),
         hooks=tuple(hooks),
@@ -184,6 +201,10 @@ def discover(packs: list[Path]) -> list[Module]:
     modules: list[Module] = []
     for pack in packs:
         pack = pack.resolve()
+        if not pack.exists():
+            raise SpecError("模块目录或父目录不存在", str(pack))
+        if not pack.is_dir():
+            raise SpecError("不是目录", str(pack))
         if (pack / "module.prop").is_file():
             modules.append(parse_module(pack))
             continue

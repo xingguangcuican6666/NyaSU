@@ -72,3 +72,34 @@ def test_reserves_patches_dir(tmp_path: Path):
     (root / "patches" / "android14-6.1").mkdir(parents=True)
     module = parse_module(root)
     assert module.patches_dir is not None
+
+
+def test_rejects_non_numeric_version_code(tmp_path: Path):
+    root = make_module(tmp_path / "m1", "m_one", "t", "e")
+    (root / "module.prop").write_text(
+        "id=m_one\nname=one\nversion=1.0.0\nversionCode=abc\n", encoding="utf-8"
+    )
+    with pytest.raises(SpecError, match="versionCode"):
+        parse_module(root)
+
+
+def test_rejects_non_numeric_priority(tmp_path: Path):
+    root = make_module(tmp_path / "m1", "m_one", "t", "e")
+    (root / "module.prop").write_text(
+        "id=m_one\nname=one\nversion=1.0.0\nversionCode=1\npriority=high\n", encoding="utf-8"
+    )
+    with pytest.raises(SpecError, match="priority"):
+        parse_module(root)
+
+
+def test_rejects_non_numeric_order(tmp_path: Path):
+    root = make_module(tmp_path / "m1", "m_one", "t", "e")
+    hooks = root / "hooks.toml"
+    hooks.write_text(hooks.read_text(encoding="utf-8").replace("order = 100", 'order = "x"'), encoding="utf-8")
+    with pytest.raises(SpecError, match="order"):
+        parse_module(root)
+
+
+def test_discover_rejects_missing_path(tmp_path: Path):
+    with pytest.raises(SpecError, match="不存在"):
+        discover([tmp_path / "nope"])

@@ -20,7 +20,20 @@ def _ksu_sources(repo: Path) -> list[Path]:
     kernel = repo / "kernel"
     if not kernel.is_dir():
         raise SdkError("找不到 kernel/ 目录", str(repo))
-    return sorted(kernel.rglob("*.c"))
+    generated = kernel / "sdkgen"
+    # 生成物不能当源码：否则二次生成会把包装自己的定义改名成 __orig，
+    # 把入口符号从树里整条拔掉。
+    return sorted(p for p in kernel.rglob("*.c") if generated not in p.parents)
+
+
+def _reject_patched_tree(repo: Path) -> None:
+    """补丁应用过的树上再次生成会写出错补丁，直接拒绝并说明。"""
+    generated = repo / "kernel" / "sdkgen"
+    if generated.is_dir() and any(generated.iterdir()):
+        raise SdkError(
+            "kernel/sdkgen 下已有生成物（补丁可能已经应用过）；请在干净的树上重新生成",
+            str(generated),
+        )
 
 
 def _plan(repo: Path, packs: list[Path]):
@@ -31,6 +44,7 @@ def _plan(repo: Path, packs: list[Path]):
 
 
 def cmd_validate(args: argparse.Namespace) -> int:
+    _reject_patched_tree(Path(args.repo))
     modules, plans, defs = _plan(Path(args.repo), [Path(p) for p in args.packs])
     problems: list[str] = []
     for plan in plans:
@@ -58,6 +72,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
 
 def cmd_generate(args: argparse.Namespace) -> int:
     repo = Path(args.repo)
+    _reject_patched_tree(repo)
     _, plans, defs = _plan(repo, [Path(p) for p in args.packs])
     kbuild = repo / "kernel" / "Kbuild"
     generation = generate(plans, defs, kbuild)
