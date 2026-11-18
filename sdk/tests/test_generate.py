@@ -141,3 +141,45 @@ def test_includes_every_module_header(fake_repo: Path, tmp_path: Path):
     gen, _ = _generate(fake_repo, tmp_path / "packs")
     text = next(f for f in gen.files if f.path.name == "ksu_handle_setresuid.c").content
     assert "extern int a_entry(uid_t old_uid, uid_t new_uid);" in text
+
+
+def test_kbuild_append_does_not_duplicate(fake_repo: Path, tmp_path: Path):
+    """同一个条目已在 Kbuild 里时不再追加，避免重复对象。"""
+    make_module(tmp_path / "packs" / "a", "mod_a", "ksu_handle_setresuid", "a_entry")
+    kbuild = fake_repo / "kernel" / "Kbuild"
+    kbuild.write_text(
+        kbuild.read_text(encoding="utf-8").replace(
+            "kernelsu-objs := core/init.o",
+            "kernelsu-objs := core/init.o\nkernelsu-objs += sdkgen/modules/mod_a/mod_a.o",
+        ),
+        encoding="utf-8",
+    )
+    gen, kbuild = _generate(fake_repo, tmp_path / "packs")
+    patch = build_patch(gen, fake_repo, kbuild)
+    added = [line for line in patch.splitlines() if line.startswith("+kernelsu-objs")]
+    assert "kernelsu-objs += sdkgen/modules/mod_a/mod_a.o" not in added
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="需要 git 才能验证补丁")
+def test_patch_applies_without_trailing_newline(fake_repo: Path, tmp_path: Path):
+    """源文件末尾没有换行时，diff 必须带 `\\ No newline at end of file`。"""
+    source = fake_repo / "kernel" / "hook" / "setuid_hook.c"
+    source.write_text(source.read_text(encoding="utf-8").rstrip(), encoding="utf-8")
+    kbuild = fake_repo / "kernel" / "Kbuild"
+    kbuild.write_text(kbuild.read_text(encoding="utf-8").rstrip(), encoding="utf-8")
+
+    make_module(tmp_path / "packs" / "a", "mod_a", "ksu_handle_setresuid", "a_entry")
+    gen, kbuild = _generate(fake_repo, tmp_path / "packs")
+
+    work = tmp_path / "work"
+    shutil.copytree(fake_repo, work)
+    subprocess.run(["git", "init", "-q"], cwd=work, check=True)
+    subprocess.run(["git", "add", "-A"], cwd=work, check=True)
+    subprocess.run(
+        ["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "init"],
+        cwd=work,
+        check=True,
+    )
+    patch_file = tmp_path / "out.patch"
+    patch_file.write_text(build_patch(gen, fake_repo, kbuild), encoding="utf-8")
+    subprocess.run(["git", "apply", "--check", str(patch_file)], cwd=work, check=True)
