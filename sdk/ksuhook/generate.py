@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -68,6 +69,11 @@ def _entry_prototype(plan: Plan, func: FuncDef) -> str:
     return f"extern {ret} {entry}({func.param_decls()});"
 
 
+def _declares(text: str, name: str) -> bool:
+    """头文件里是否已经声明了这个函数（够用的词法判断，不解析 C）。"""
+    return re.search(rf"\b{re.escape(name)}\s*\(", text) is not None
+
+
 def _call(entry: str, func: FuncDef) -> str:
     return f"{entry}({func.arg_names()})"
 
@@ -82,15 +88,26 @@ def _source_includes(func: FuncDef) -> list[str]:
     return includes
 
 
-def _wrapper(plan: TargetPlan, func: FuncDef, hooks: dict[str, str]) -> str:
-    """hooks: 模块 id -> 随包复制进内核树的头文件名（无则退化为 extern）。"""
+def _wrapper(
+    plan: TargetPlan,
+    func: FuncDef,
+    hooks: dict[str, tuple[str, ...]],
+    declared: frozenset[str],
+) -> str:
+    """hooks: 模块 id -> 随包复制进内核树的头文件列表。
+
+    模块可以有多个头文件，入口函数不一定声明在字典序第一个里：全部包含，
+    只有当这些头文件都没有声明入口时才退回 `extern` 原型（`declared` 为
+    已在这些头文件里出现过的函数名）。
+    """
     lines: list[str] = [BANNER]
     includes = _source_includes(func)
     if includes:
         lines.extend(includes)
         lines.append("")
-    for module_id, header in sorted(hooks.items()):
-        lines.append(f'#include "modules/{module_id}/{header}"')
+    for module_id, headers in sorted(hooks.items()):
+        for header in headers:
+            lines.append(f'#include "modules/{module_id}/{header}"')
     if hooks:
         lines.append("")
 
@@ -102,8 +119,9 @@ def _wrapper(plan: TargetPlan, func: FuncDef, hooks: dict[str, str]) -> str:
     for entry_plan in entries:
         assert entry_plan is not None
         lines.append(f"/* 模块 {entry_plan.module.id}: {entry_plan.hook.id} */")
-        if entry_plan.module.id not in hooks:
+        if entry_plan.hook.entry not in declared:
             lines.append(_entry_prototype(entry_plan, func))
+
     lines.append("")
 
     lines.append(f"{func.ret} {plan.target}({func.param_decls()})")
@@ -165,6 +183,11 @@ def generate(
             raise GenerateError("目标函数未在源码中找到定义", plan.target)
         if func.is_inline:
             raise GenerateError("inline 函数无法包装（GKI 下会被内联展开）", plan.target)
+        if func.is_static:
+            raise GenerateError(
+                "static 函数只有内部链接，kernel/sdkgen 下的包装无法调用它；请 hook 一个外部可见的函数",
+                plan.target,
+            )
 
         edits.append(
             FileEdit(
@@ -174,18 +197,24 @@ def generate(
                 replacement=orig_name(plan.target),
             )
         )
-        hooks_headers: dict[str, str] = {}
+        hooks_headers: dict[str, tuple[str, ...]] = {}
+        declared: set[str] = set()
         module_files = _module_files(plan)
         for entry_plan in ([plan.replace] if plan.replace else list(plan.chain)):
             assert entry_plan is not None
-            headers = sorted(p.name for p in (entry_plan.module.root / "src").glob("*.h"))
+            src_dir = entry_plan.module.root / "src"
+            headers = sorted(p.name for p in src_dir.glob("*.h"))
             if headers:
-                hooks_headers[entry_plan.module.id] = headers[0]
+                hooks_headers[entry_plan.module.id] = tuple(headers)
+            for header in headers:
+                text = (src_dir / header).read_text(encoding="utf-8", errors="replace")
+                if _declares(text, entry_plan.hook.entry):
+                    declared.add(entry_plan.hook.entry)
 
         files.append(
             GeneratedFile(
                 path=Path(sdk_dir) / f"{plan.target}.c",
-                content=_wrapper(plan, func, hooks_headers),
+                content=_wrapper(plan, func, hooks_headers, frozenset(declared)),
             )
         )
         objects.append(f"sdkgen/{plan.target}.o")

@@ -63,7 +63,8 @@ order  = 10                         # 越小越先执行，默认 100
 - 只能用内核头文件（`<linux/...>`）与 KernelSU 的 `kernel/include`；
   主机侧单测由 `devkit/shim` 提供替身。
 - 不要 `#include "path/to/ksu/header.h"`，用相对的模块头（如 `"uid_audit.h"`）。
-  生成的包装只按 `modules/<id>/<header>` 引用模块自己的头文件。
+  生成的包装按 `modules/<id>/<header>` 引用模块自己的**全部**头文件（字典序）；
+  入口函数没有被任何头文件声明时，包装会补一条 `extern` 原型。
 - 载荷会被复制进 `kernel/sdkgen/modules/<id>/`，因此文件名之间不要冲突。
 
 ## `tests/`
