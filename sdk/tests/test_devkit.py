@@ -55,3 +55,39 @@ def test_missing_tests_is_not_a_failure(tmp_path: Path):
     result = build_and_run(parse_module(root))
     assert result.ok
     assert "跳过" in result.output
+
+
+@pytest.mark.skipif(shutil.which("cc") is None and shutil.which("gcc") is None, reason="无 C 编译器")
+def test_runs_every_test_file(tmp_path: Path):
+    """tests/ 下有多个 .c 时全部编译运行，不能只看第一个。"""
+    from conftest import make_module
+
+    root = make_module(
+        tmp_path / "multi",
+        "mod_multi",
+        "ksu_handle_setresuid",
+        "multi_entry",
+        body="""\
+#include <linux/types.h>
+#include <linux/uidgid.h>
+int multi_entry(uid_t a, uid_t b) { (void)a; (void)b; return 0; }
+""",
+    )
+    (root / "tests").mkdir()
+    (root / "tests" / "a_first.c").write_text(
+        """\
+#include <stdio.h>
+int main(void) { puts("first ok"); return 0; }
+""",
+        encoding="utf-8",
+    )
+    (root / "tests" / "z_last.c").write_text(
+        """\
+#include <stdio.h>
+int main(void) { puts("last ok"); return 1; }
+""",
+        encoding="utf-8",
+    )
+    result = build_and_run(parse_module(root))
+    assert not result.ok
+    assert "last ok" in result.output
