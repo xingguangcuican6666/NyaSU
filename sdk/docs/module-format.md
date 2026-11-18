@@ -35,6 +35,7 @@
 | `priority` | | 整数，默认 `50`；**越大越先执行** |
 | `description` | | 说明 |
 | `author` | | 作者 |
+| `depends` | | 逗号分隔的模块 id 列表；仅供构建期编排方（如 ABK）分组，SDK 只校验格式 |
 
 ## `hooks.toml`
 

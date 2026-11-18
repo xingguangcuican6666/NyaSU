@@ -81,6 +81,8 @@ class Module:
     sources: tuple[Path, ...]
     patches_dir: Path | None
     tests_dir: Path | None
+    # 可选依赖：构建期编排方（如 ABK）据此分组；SDK 自身不强制依赖存在。
+    depends: tuple[str, ...] = ()
     raw: dict[str, Any] = field(default=None, repr=False)  # type: ignore[assignment]
 
 
@@ -95,6 +97,21 @@ def _read_prop(path: Path) -> dict[str, str]:
         key, value = line.split("=", 1)
         props[key.strip()] = value.strip()
     return props
+
+
+def _parse_depends(props: dict[str, str], where: str) -> tuple[str, ...]:
+    """解析可选 ``depends=id_a,id_b``；只校验标识符格式，不校验存在性。"""
+    raw = props.get("depends", "")
+    if not raw.strip():
+        return ()
+    seen: list[str] = []
+    for item in raw.split(","):
+        name = item.strip()
+        if not name:
+            continue
+        seen.append(_ident(name, where, "depends 模块 id"))
+    # 去重但保留首次出现顺序，便于编排方稳定复现。
+    return tuple(dict.fromkeys(seen))
 
 
 def parse_module(root: Path) -> Module:
@@ -175,12 +192,17 @@ def parse_module(root: Path) -> Module:
         sources=sources,
         patches_dir=patches_dir,
         tests_dir=tests_dir,
+        depends=_parse_depends(props, where_prop),
         raw=raw,
     )
 
 
-def discover(packs: list[Path]) -> list[Module]:
-    """接受模块目录或其父目录，展开成模块列表。"""
+def discover(packs: list[Path], check_depends: bool = False) -> list[Module]:
+    """接受模块目录或其父目录，展开成模块列表。
+
+    ``check_depends=True`` 时额外校验每条 ``depends`` 都能在本次发现的集合里找到；
+    默认关闭，保持单模块独立开发时依赖可以缺席的既有语义。
+    """
     modules: list[Module] = []
     for pack in packs:
         pack = pack.resolve()
@@ -196,4 +218,13 @@ def discover(packs: list[Path]) -> list[Module]:
     dupes = {i for i in ids if ids.count(i) > 1}
     if dupes:
         raise SpecError(f"模块 id 重复: {sorted(dupes)}")
+    if check_depends:
+        known = set(ids)
+        for module in modules:
+            missing = [dep for dep in module.depends if dep not in known]
+            if missing:
+                raise SpecError(
+                    f"模块 {module.id} 的依赖不存在: {sorted(missing)}",
+                    str(module.root / "module.prop"),
+                )
     return modules
