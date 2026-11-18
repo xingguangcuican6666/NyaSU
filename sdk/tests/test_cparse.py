@@ -101,3 +101,32 @@ def test_real_repo_no_false_positives():
             assert func.name not in {"if", "for", "while", "switch", "return"}
             assert "#" not in func.ret
             assert "//" not in func.ret
+
+
+def test_always_inline_and_inline_qualifiers():
+    """`__always_inline` / `__inline__` 同样是内联，不能当成可包装的普通函数。"""
+    text = """\
+static __always_inline bool my_do_syscall_x64(int nr)
+{
+    return nr != 0;
+}
+
+static __inline__ int other(int b)
+{
+    return b;
+}
+"""
+    funcs = {f.name: f for f in parse_functions(Path("x.c"), text)}
+    assert funcs["my_do_syscall_x64"].is_inline and funcs["my_do_syscall_x64"].is_static
+    assert funcs["other"].is_inline
+    # 返回类型里不能残留 `__inline__` 之类的存储类关键字
+    assert funcs["other"].ret == "int"
+
+
+def test_abstract_array_param_is_not_a_name():
+    """`int []` 里的 `int` 是类型，不是参数名；补出的名字要能编译。"""
+    text = "int unnamed_arr(int [], int n)\n{\n    return n;\n}\n"
+    func = find_function([_write(text)], "unnamed_arr")
+    assert func is not None
+    assert func.param_decls() == "int __ksu_p0[], int n"
+    assert func.arg_names() == "__ksu_p0, n"

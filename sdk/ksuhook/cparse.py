@@ -65,6 +65,15 @@ _TYPE_KEYWORDS = {
     "kgid_t",
 }
 
+# 这些前缀会让函数在编译期内联展开，没有可调用的符号，不能作为 hook 目标
+_INLINE_QUALIFIERS = {
+    "inline",
+    "__inline",
+    "__inline__",
+    "__always_inline",
+    "always_inline",
+}
+
 _IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 _CALL_START = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)\s*\(")
 _FUNC_PTR_PARAM = re.compile(r"^(?P<ret>.*?)\(\s*\*\s*(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*\)\s*\((?P<args>.*)\)$", re.S)
@@ -83,7 +92,15 @@ class Param:
         """返回可直接写进函数签名的声明，缺名时补一个合法的合成名字。"""
         if self.name:
             return self.raw
-        return f"{self.type} __ksu_p{index}"
+        synthetic = f"__ksu_p{index}"
+        # 抽象数组形参（`int []`）的名字只能写在方括号前面：
+        # `int [] __ksu_p0` 不是合法 C。
+        if self.type.endswith("]"):
+            base, _, dims = self.type.partition("[")
+            base = base.strip()
+            if base:
+                return f"{base} {synthetic}[{dims}" if dims else f"{base} {synthetic}[]"
+        return f"{self.type} {synthetic}".strip()
 
     def arg(self, index: int) -> str:
         return self.name or f"__ksu_p{index}"
@@ -107,7 +124,7 @@ class FuncDef:
 
     @property
     def is_inline(self) -> bool:
-        return "inline" in self.prefix.split()
+        return bool(_INLINE_QUALIFIERS.intersection(self.prefix.split()))
 
     @property
     def is_void(self) -> bool:
@@ -266,11 +283,13 @@ def _parse_param(raw: str) -> Param:
 
     array = _ARRAY_PARAM.match(text)
     if array and "(" not in array.group("type"):
-        return Param(
-            type=f"{array.group('type').strip()} {array.group('dims')}",
-            name=array.group("name"),
-            raw=text,
-        )
+        # `int []` 会被这条正则匹配成 name="int"：类型关键字不是参数名。
+        if array.group("name") not in _TYPE_KEYWORDS:
+            return Param(
+                type=f"{array.group('type').strip()} {array.group('dims')}".strip(),
+                name=array.group("name"),
+                raw=text,
+            )
 
     match = re.match(r"^(?P<type>.*?)(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*$", text, re.S)
     if not match:
@@ -345,7 +364,7 @@ def parse_functions(path: Path, text: str | None = None) -> list[FuncDef]:
             params = tuple(_parse_param(p) for p in param_parts if p.strip())
 
         ret = prefix
-        for storage in ("static", "inline", "__init", "__exit", "__always_inline"):
+        for storage in ("static", "inline", "__inline", "__inline__", "__always_inline", "__init", "__exit"):
             ret = re.sub(rf"\b{storage}\b", "", ret)
         ret = " ".join(ret.split())
 
