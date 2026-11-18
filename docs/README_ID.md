@@ -1,53 +1,53 @@
 [English](README.md) | [Español](README_ES.md) | [简体中文](README_CN.md) | [繁體中文](README_TW.md) | [日本語](README_JP.md) | [한국어](README_KR.md) | [Polski](README_PL.md) | [Português (Brasil)](README_PT-BR.md) | [Türkçe](README_TR.md) | [Русский](README_RU.md) | [Tiếng Việt](README_VI.md) | **Indonesia** | [עברית](README_IW.md) | [हिंदी](README_IN.md) | [Italiano](README_IT.md)
 
-# KernelSU
+# NyaSU
 
-<img src="https://kernelsu.org/logo.png" style="width: 96px;" alt="logo">
+<img src="https://raw.githubusercontent.com/xingguangcuican6666/NyaSU/main/website/docs/public/logo.png" style="width: 96px;" alt="logo">
 
 Solusi root berbasis kernel untuk perangkat Android.
 
-[![Latest release](https://img.shields.io/github/v/release/tiann/KernelSU?label=Release&logo=github)](https://github.com/tiann/KernelSU/releases/latest)
-[![Weblate](https://img.shields.io/badge/Localization-Weblate-teal?logo=weblate)](https://hosted.weblate.org/engage/kernelsu)
-[![Channel](https://img.shields.io/badge/Follow-Telegram-blue.svg?logo=telegram)](https://t.me/KernelSU)
+[![Latest release](https://img.shields.io/github/v/release/xingguangcuican6666/NyaSU?label=Release&logo=github)](https://github.com/xingguangcuican6666/NyaSU/releases/latest)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-orange.svg?logo=gnu)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
-[![GitHub License](https://img.shields.io/github/license/tiann/KernelSU?logo=gnu)](/LICENSE)
+[![GitHub License](https://img.shields.io/github/license/xingguangcuican6666/NyaSU?logo=gnu)](/LICENSE)
+
+## Upstream
+
+NyaSU adalah turunan dari [KernelSU](https://github.com/tiann/KernelSU), solusi root sumber terbuka berbasis kernel yang dibuat oleh tiann dan para kontributornya. Desain sisi kernel, antarmuka supercall, dan format modul berasal dari proyek tersebut; untuk hal yang tidak dibahas di dokumentasi repositori ini, acuannya adalah upstream.
+
+Lisensinya sama dengan upstream: berkas di dalam `kernel/` berlisensi GPL-2.0-only, sisanya GPL-3.0-or-later. Hak cipta kode asli tetap milik para penulisnya.
 
 ## Fitur
 
 1. Akses `su` dan manajemen hak akses root berbasis kernel.
-2. Sistem modul berbasis [metamodules](https://kernelsu.org/id_ID/guide/metamodule.html): Infrastruktur yang dapat dicopot-pasang untuk modifikasi systemless.
-3. [Profil Aplikasi](https://kernelsu.org/guide/app-profile.html): Kendalikan hak akses root secara aman.
+2. Sistem modul berbasis [metamodules](../website/docs/id_ID/guide/metamodule.md): Infrastruktur yang dapat dicopot-pasang untuk modifikasi systemless.
+3. [Profil Aplikasi](../website/docs/id_ID/guide/app-profile.md): Kendalikan hak akses root secara aman.
 
 ## Status Kompatibilitas
 
-KernelSU secara resmi mendukung perangkat Android GKI 2.0 (dengan kernel 5.10+), kernel lama (4.14+) juga didukung, tetapi kernel perlu dikompilasi secara manual.
+NyaSU secara resmi mendukung perangkat Android GKI 2.0 (dengan kernel 5.10+), kernel lama (4.14+) juga didukung, tetapi kernel perlu dikompilasi secara manual.
 
 Dengan dukungan ini WSA, ChromeOS, dan Android berbasis kontainer semuanya dapat dijalankan.
 
 Saat ini, arsitektur `arm64-v8a` dan `x86_64` sudah didukung.
 
 > [!CAUTION]
-> Versi kernel terbaru menerapkan perubahan besar yang menyebabkan KernelSU gagal dan berpotensi memicu kernel panic pada `x86_64`! Cek situs web untuk informasi lebih lanjut!
+> Versi kernel terbaru menerapkan perubahan besar yang menyebabkan NyaSU gagal dan berpotensi memicu kernel panic pada `x86_64`! Cek situs web untuk informasi lebih lanjut!
 
 ## Penggunaan
 
-- [Pemasangan](https://kernelsu.org/id_ID/guide/installation.html)
-- [Cara Build](https://kernelsu.org/id_ID/guide/how-to-build.html)
-- [Situs Web Resmi](https://kernelsu.org/id_ID/)
+- [Pemasangan](../website/docs/id_ID/guide/installation.md)
+- [Cara Build](../website/docs/id_ID/guide/how-to-build.md)
+- [Situs Web Resmi](../website/docs/id_ID/index.md)
 
 ## Terjemahan
 
-Untuk membantu penerjemahan KernelSU, kami tidak lagi menerima kontribusi terjemahan melalui Weblate. Semua terjemahan kini ditangani menggunakan LLM.
+Terjemahan di direktori ini dibuat dengan LLM.
 
-Jika Anda ingin menambahkan dukungan untuk bahasa baru, silakan buat PR (Pull Request). Harap diperhatikan bahwa perubahan pada terjemahan bahasa Inggris dan Mandarin yang sudah ada tidak akan diterima.
-
-## Diskusi
-
-- Telegram: [@KernelSU](https://t.me/KernelSU)
+Jika ingin menambahkan bahasa baru, silakan buka PR. Perubahan pada teks bahasa Inggris dan Mandarin yang sudah ada tidak diterima.
 
 ## Keamanan
 
-Untuk informasi mengenai pelaporan kerentanan keamanan di KernelSU, lihat [SECURITY.md](/SECURITY.md).
+Untuk informasi mengenai pelaporan kerentanan keamanan di NyaSU, lihat [SECURITY.md](/SECURITY.md).
 
 ## Lisensi
 

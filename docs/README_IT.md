@@ -1,52 +1,53 @@
 [English](REAME.md) | [Español](README_ES.md) | [简体中文](README_CN.md) | [繁體中文](README_TW.md) | [日本語](README_JP.md) | [한국어](README_KR.md) | [Polski](README_PL.md) | [Português (Brasil)](README_PT-BR.md) | [Türkçe](README_TR.md) | [Русский](README_RU.md) | [Tiếng Việt](README_VI.md) | [Indonesia](README_ID.md) | [עברית](README_IW.md) | [हिंदी](README_IN.md) | **Italiano**
 
-# KernelSU
+# NyaSU
 
-<img src="https://kernelsu.org/logo.png" style="width: 96px;" alt="logo">
+<img src="https://raw.githubusercontent.com/xingguangcuican6666/NyaSU/main/website/docs/public/logo.png" style="width: 96px;" alt="logo">
 
 Una soluzione per il root basata sul kernel per i dispositivi Android. 
 
-[![Latest release](https://img.shields.io/github/v/release/tiann/KernelSU?label=Release&logo=github)](https://github.com/tiann/KernelSU/releases/latest)
-[![Weblate](https://img.shields.io/badge/Localization-Weblate-teal?logo=weblate)](https://hosted.weblate.org/engage/kernelsu)
-[![Canale Telegraml](https://img.shields.io/badge/Follow-Telegram-blue.svg?logo=telegram)](https://t.me/KernelSU)
+[![Latest release](https://img.shields.io/github/v/release/xingguangcuican6666/NyaSU?label=Release&logo=github)](https://github.com/xingguangcuican6666/NyaSU/releases/latest)
 [![Licenza componenti kernel: GPL v2](https://img.shields.io/badge/License-GPL%20v2-orange.svg?logo=gnu)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
-[![Licenza elementi non kern](https://img.shields.io/github/license/tiann/KernelSU?logo=gnu)](/LICENSE)
+[![Licenza elementi non kern](https://img.shields.io/github/license/xingguangcuican6666/NyaSU?logo=gnu)](/LICENSE)
+
+## Progetto upstream
+
+NyaSU è un derivato di [KernelSU](https://github.com/tiann/KernelSU), soluzione root open source basata sul kernel creata da tiann e dai suoi contributori. Il design lato kernel, l'interfaccia supercall e il formato dei moduli provengono da quel progetto; l'upstream resta il riferimento per tutto ciò che non è trattato dalla documentazione di questo repository.
+
+Le licenze sono le stesse dell'upstream: i file in `kernel/` sono GPL-2.0-only, tutto il resto è GPL-3.0-or-later. Il copyright del codice originale resta ai suoi autori.
 
 ## Funzionalità
 
 1. `su` e accesso root basato sul kernel.
-2. Sistema di moduli basato su [metamodules](https://kernelsu.org/guide/metamodule.html): Infrastruttura modulare per modifiche systemless.
-3. [App profile](https://kernelsu.org/guide/app-profile.html): Limita i poteri dell'accesso root a permessi specifici.
+2. Sistema di moduli basato su [metamodules](../website/docs/guide/metamodule.md): Infrastruttura modulare per modifiche systemless.
+3. [App profile](../website/docs/guide/app-profile.md): Limita i poteri dell'accesso root a permessi specifici.
 
 ## Compatibilità
 
-KernelSU supporta ufficialmente i dispositivi Android GKI 2.0 (kernel 5.10 o superiore). I kernel precedenti (kernel 4.14+) sono anche compatibili, ma il kernel deve essere compilato manualmente.
+NyaSU supporta ufficialmente i dispositivi Android GKI 2.0 (kernel 5.10 o superiore). I kernel precedenti (kernel 4.14+) sono anche compatibili, ma il kernel deve essere compilato manualmente.
 
 Questo implica che WSA, ChromeOS e tutti le varianti di Android basate su container e virtualizzazione sono supportate.
 
 Attualmente sono supportate le architetture `arm64-v8a` e `x86_64`.
 
 > [!CAUTION]
-> Le versioni recenti del kernel hanno implementato una modifica che causa il fallimento di KernelSU e potenzialmente innesca un kernel panic su `x86_64`! Controlla il sito web per maggiori informazioni!
+> Le versioni recenti del kernel hanno implementato una modifica che causa il fallimento di NyaSU e potenzialmente innesca un kernel panic su `x86_64`! Controlla il sito web per maggiori informazioni!
 
 ## Utilizzo
 
-- [Istruzioni per l'installazione](https://kernelsu.org/guide/installation.html)
-- [Come compilare manualmente?](https://kernelsu.org/guide/how-to-build.html)
-- [Sito web ufficiale](https://kernelsu.org/)
+- [Istruzioni per l'installazione](../website/docs/guide/installation.md)
+- [Come compilare manualmente?](../website/docs/guide/how-to-build.md)
+- [Sito web ufficiale](../website/docs/index.md)
 
 ## Traduzioni
 
-Per aiutare a tradurre KernelSU o migliorare le traduzioni esistenti, si è pregati di utilizzare 
-To help translate KernelSU or improve existing translations, please use [Weblate](https://hosted.weblate.org/engage/kernelsu/). Le richieste di pull delle traduzioni del manager non saranno più accettate perché sarebbero in conflitto con Weblate.
+Le traduzioni di questa directory sono generate con LLM.
 
-## Discussione
-
-- Telegram: [@KernelSU](https://t.me/KernelSU)
+Per aggiungere una nuova lingua apri una PR. Le modifiche ai testi esistenti in inglese e cinese non sono accettate.
 
 ## Securezza
 
-Per informazioni riguardo la segnalazione di vulnerabilità di sicurezza per KernelSU, leggi [SECURITY.md](/SECURITY.md).
+Per informazioni riguardo la segnalazione di vulnerabilità di sicurezza per NyaSU, leggi [SECURITY.md](/SECURITY.md).
 
 ## Licenza
 
