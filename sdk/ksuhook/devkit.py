@@ -64,32 +64,45 @@ def build_and_run(module: Module, keep: Path | None = None) -> DevResult:
         stub_path = work / "ksuhook_stub.c"
         stub_path.write_text(STUB, encoding="utf-8")
 
-        main_file = tests[0]
-        binary = work / "module_test"
-        command = [
-            cc,
-            "-std=gnu11",
-            "-O1",
-            "-Wall",
-            "-Wextra",
-            "-Wno-unused-parameter",
-            "-I",
-            str(SHIM_DIR),
-            "-I",
-            str(module.root / "src"),
-            "-o",
-            str(binary),
-            str(main_file),
-            *(str(p) for p in module.sources),
-            str(stub_path),
-        ]
-        proc = subprocess.run(command, capture_output=True, text=True)
-        shown = " ".join(command)
-        if proc.returncode != 0:
-            return DevResult(ok=False, output=proc.stderr, command=shown)
+        # tests/ 下每个 .c 都是一个独立的测试程序：全部编译、全部运行，
+        # 不能只跑第一个然后当作整个模块通过了。
+        outputs: list[str] = []
+        commands: list[str] = []
+        for main_file in tests:
+            binary = work / f"module_test_{main_file.stem}"
+            command = [
+                cc,
+                "-std=gnu11",
+                "-O1",
+                "-Wall",
+                "-Wextra",
+                "-Wno-unused-parameter",
+                "-I",
+                str(SHIM_DIR),
+                "-I",
+                str(module.root / "src"),
+                "-o",
+                str(binary),
+                str(main_file),
+                *(str(p) for p in module.sources),
+                str(stub_path),
+            ]
+            proc = subprocess.run(command, capture_output=True, text=True)
+            shown = " ".join(command)
+            commands.append(shown)
+            if proc.returncode != 0:
+                return DevResult(
+                    ok=False,
+                    output=f"[{main_file.name}] 编译失败\n{proc.stderr}",
+                    command=shown,
+                )
+            run = subprocess.run([str(binary)], capture_output=True, text=True)
+            text = run.stdout + run.stderr
+            outputs.append(text if len(tests) == 1 else f"[{main_file.name}] {text.strip()}")
+            if run.returncode != 0:
+                return DevResult(ok=False, output="\n".join(outputs), command=shown)
 
-        run = subprocess.run([str(binary)], capture_output=True, text=True)
-        return DevResult(ok=run.returncode == 0, output=run.stdout + run.stderr, command=shown)
+        return DevResult(ok=True, output="\n".join(outputs), command=" && ".join(commands))
     except OSError as exc:
         raise SdkError(f"无法执行编译器: {exc}", str(module.root)) from exc
     finally:

@@ -123,9 +123,17 @@ def parse_module(root: Path) -> Module:
         if mode not in MODES:
             raise SpecError(f"mode 必须是 {MODES} 之一", f"hook {hook_id}")
         order = int(item.get("order", 100))
-        source = root / str(item["source"]) if "source" in item else None
-        if source is not None and not source.is_file():
-            raise SpecError(f"source '{item['source']}' 不存在", f"hook {hook_id}")
+        source = None
+        if "source" in item:
+            source = (root / str(item["source"])).resolve()
+            try:
+                source.relative_to(root)
+            except ValueError as exc:
+                raise SpecError(
+                    f"source '{item['source']}' 必须位于模块目录内", f"hook {hook_id}"
+                ) from exc
+            if not source.is_file():
+                raise SpecError(f"source '{item['source']}' 不存在", f"hook {hook_id}")
         hooks.append(
             Hook(
                 module_id=module_id,

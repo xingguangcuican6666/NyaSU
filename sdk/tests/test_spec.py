@@ -72,3 +72,16 @@ def test_reserves_patches_dir(tmp_path: Path):
     (root / "patches" / "android14-6.1").mkdir(parents=True)
     module = parse_module(root)
     assert module.patches_dir is not None
+
+
+def test_rejects_source_outside_module(tmp_path: Path):
+    root = make_module(tmp_path / "m1", "m_one", "t", "e")
+    outside = tmp_path / "outside.c"
+    outside.write_text("int e(void) { return 0; }\n", encoding="utf-8")
+    hooks = root / "hooks.toml"
+    hooks.write_text(
+        hooks.read_text(encoding="utf-8").replace("order = 100", 'order = 100\nsource = "../../outside.c"'),
+        encoding="utf-8",
+    )
+    with pytest.raises(SpecError, match="模块目录内"):
+        parse_module(root)

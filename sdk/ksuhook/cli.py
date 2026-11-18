@@ -70,7 +70,10 @@ def cmd_generate(args: argparse.Namespace) -> int:
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(text, encoding="utf-8")
-    print(f"wrote {out} ({len(text.splitlines())} lines)")
+    if not text.strip():
+        print(f"wrote {out} (0 lines)：没有任何被 hook 的函数，补丁为空")
+    else:
+        print(f"wrote {out} ({len(text.splitlines())} lines)")
     return 0
 
 
