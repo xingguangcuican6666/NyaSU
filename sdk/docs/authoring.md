@@ -29,8 +29,9 @@ description=一句话说明
 python3 -m ksuhook validate --repo ../.. --packs my_module
 ```
 
-目标必须出现在 `kernel/` 下某个 `.c` 的定义里。`inline` 函数会被拒绝
-（GKI 下会被内联展开，包装无效）。
+目标必须出现在 `kernel/` 下某个 `.c` 的定义里。`inline` / `__always_inline` /
+`__inline__` 函数会被拒绝（GKI 下会被内联展开，没有可调用的符号）；`static`
+函数也会被拒绝（只有内部链接，`kernel/sdkgen` 下的包装永远链不上）。
 
 ## 3. 声明 hook 并写载荷
 

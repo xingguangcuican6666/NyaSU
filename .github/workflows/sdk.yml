@@ -1,0 +1,50 @@
+name: SDK
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - '.github/workflows/sdk.yml'
+      - 'sdk/**'
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths:
+      - '.github/workflows/sdk.yml'
+      - 'sdk/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: sdk
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install pytest
+        run: python3 -m pip install --upgrade pytest
+
+      - name: Run unit tests
+        run: python3 -m pytest -q
+
+      - name: Compile and run module tests on the host
+        run: python3 -m ksuhook dev --packs examples
+
+      - name: Validate example packs
+        run: python3 -m ksuhook validate --repo .. --packs examples
+
+      - name: Generate patch and check it applies
+        run: |
+          python3 -m ksuhook generate --repo .. --packs examples --out "$RUNNER_TEMP/ksu-sdkgen.patch"
+          cd ..
+          git apply --check -p1 "$RUNNER_TEMP/ksu-sdkgen.patch"

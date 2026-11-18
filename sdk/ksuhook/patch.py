@@ -37,6 +37,22 @@ def _new_file_header(name: str) -> list[str]:
     ]
 
 
+def _join(lines: list[str]) -> str:
+    """拼 unified diff，给缺尾换行的最后一行补上 git 的标记。
+
+    `difflib` 不会输出 `\\ No newline at end of file`：源文件最后一行没有换行时，
+    diff 里的那一行会被当成"有换行"，`git apply` 直接报 patch does not apply。
+    """
+    out: list[str] = []
+    for line in lines:
+        if line.endswith("\n"):
+            out.append(line)
+            continue
+        out.append(line + "\n")
+        out.append("\\ No newline at end of file\n")
+    return "".join(out)
+
+
 def build_patch(generation: Generation, repo: Path, kbuild: Path) -> str:
     chunks: list[str] = []
 
@@ -48,6 +64,8 @@ def build_patch(generation: Generation, repo: Path, kbuild: Path) -> str:
     for path, new_text in sorted(diffs.items()):
         rel = _rel(path, repo)
         old_text = _read(path)
+        if old_text == new_text:
+            continue
         lines = list(
             difflib.unified_diff(
                 old_text.splitlines(keepends=True),
@@ -59,7 +77,7 @@ def build_patch(generation: Generation, repo: Path, kbuild: Path) -> str:
         )
         if not lines:
             continue
-        body = "".join(line if line.endswith("\n") else line + "\n" for line in lines[2:])
+        body = _join(lines[2:])
         chunks.append("\n".join(_header(rel, rel)) + "\n" + body)
 
     for gen_file in sorted(generation.files, key=lambda f: f.path.as_posix()):
@@ -78,9 +96,14 @@ def build_patch(generation: Generation, repo: Path, kbuild: Path) -> str:
 
 
 def _append_block(original: str, block: tuple[str, ...]) -> str:
+    """追加构建条目；已经在文件里的条目不重复追加，保证重复生成不会写出重复对象。"""
     text = original if original.endswith("\n") else original + "\n"
+    present = {line.strip() for line in original.splitlines()}
+    missing = tuple(line for line in block if line.strip() not in present)
+    if not missing:
+        return text
     return text + "\n# ksuhook: 按模块生成的 hook（追加，不修改既有条目）\n" + "".join(
-        line + "\n" for line in block
+        line + "\n" for line in missing
     )
 
 
