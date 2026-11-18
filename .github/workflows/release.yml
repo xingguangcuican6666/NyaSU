@@ -6,12 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-manager:
-    uses: ./.github/workflows/build-manager.yml
-    secrets: inherit
   release:
-    needs:
-      - build-manager
     runs-on: ubuntu-latest
     steps:
       - name: Download artifacts
@@ -65,7 +60,6 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           files: |
-            manager/*.apk
             lkm/lkm-*_kernelsu.ko
             ksud/ksud-*
             ksuinit/*
