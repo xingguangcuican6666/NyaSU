@@ -2,74 +2,101 @@
 set -eu
 
 GKI_ROOT=$(pwd)
+NyaSU_REPO="https://github.com/xingguangcuican6666/NyaSU.git"
 
 display_usage() {
     echo "Usage: $0 [--cleanup | <commit-or-tag>]"
     echo "  --cleanup:              Cleans up previous modifications made by the script."
-    echo "  <commit-or-tag>:        Sets up or updates the KernelSU to specified tag or commit."
+    echo "  <commit-or-tag>:        Sets up the NyaSU source at this exact ref."
     echo "  -h, --help:             Displays this usage information."
-    echo "  (no args):              Sets up or updates the KernelSU environment to the latest tagged version."
+    echo "  (no args):              Sets up the NyaSU source at the default branch tip."
 }
 
 initialize_variables() {
-    if test -d "$GKI_ROOT/common/drivers"; then
-         DRIVER_DIR="$GKI_ROOT/common/drivers"
-    elif test -d "$GKI_ROOT/drivers"; then
-         DRIVER_DIR="$GKI_ROOT/drivers"
+    if [ -d "$GKI_ROOT/common/drivers" ]; then
+        DRIVER_DIR="$GKI_ROOT/common/drivers"
+    elif [ -d "$GKI_ROOT/drivers" ]; then
+        DRIVER_DIR="$GKI_ROOT/drivers"
     else
-         echo '[ERROR] "drivers/" directory not found.'
-         exit 127
+        echo '[ERROR] "drivers/" directory not found.' >&2
+        exit 127
     fi
 
     DRIVER_MAKEFILE=$DRIVER_DIR/Makefile
     DRIVER_KCONFIG=$DRIVER_DIR/Kconfig
 }
 
-# Reverts modifications made by this script
 perform_cleanup() {
     echo "[+] Cleaning up..."
-    [ -L "$DRIVER_DIR/kernelsu" ] && rm "$DRIVER_DIR/kernelsu" && echo "[-] Symlink removed."
-    grep -q "kernelsu" "$DRIVER_MAKEFILE" && sed -i '/kernelsu/d' "$DRIVER_MAKEFILE" && echo "[-] Makefile reverted."
-    grep -q "drivers/kernelsu/Kconfig" "$DRIVER_KCONFIG" && sed -i '/drivers\/kernelsu\/Kconfig/d' "$DRIVER_KCONFIG" && echo "[-] Kconfig reverted."
+    if [ -L "$DRIVER_DIR/kernelsu" ]; then
+        rm "$DRIVER_DIR/kernelsu"
+    fi
+    if [ -f "$DRIVER_MAKEFILE" ]; then
+        sed -i '\|^obj-$(CONFIG_KSU) += kernelsu/$|d' "$DRIVER_MAKEFILE"
+    fi
+    if [ -f "$DRIVER_KCONFIG" ]; then
+        sed -i '\|^source "drivers/kernelsu/Kconfig"$|d' "$DRIVER_KCONFIG"
+    fi
     if [ -d "$GKI_ROOT/KernelSU" ]; then
-        rm -rf "$GKI_ROOT/KernelSU" && echo "[-] KernelSU directory deleted."
+        rm -rf "$GKI_ROOT/KernelSU"
     fi
+    echo "[-] Cleanup complete."
 }
 
-# Sets up or update KernelSU environment
-setup_kernelsu() {
-    echo "[+] Setting up KernelSU..."
-    test -d "$GKI_ROOT/KernelSU" || git clone https://github.com/tiann/KernelSU && echo "[+] Repository cloned."
-    cd "$GKI_ROOT/KernelSU"
-    git stash && echo "[-] Stashed current changes."
-    if [ "$(git status | grep -Po 'v\d+(\.\d+)*' | head -n1)" ]; then
-        git checkout main && echo "[-] Switched to main branch."
+setup_nyasu() {
+    requested_ref=${1-}
+    if [ ! -d "$GKI_ROOT/KernelSU/.git" ]; then
+        if [ -e "$GKI_ROOT/KernelSU" ]; then
+            echo "[ERROR] $GKI_ROOT/KernelSU exists but is not a Git checkout." >&2
+            exit 1
+        fi
+        git clone "$NyaSU_REPO" "$GKI_ROOT/KernelSU"
     fi
-    git pull && echo "[+] Repository updated."
-    if [ -z "${1-}" ]; then
-        git checkout "$(git describe --abbrev=0 --tags)" && echo "[-] Checked out latest tag."
+
+    if [ -n "$requested_ref" ]; then
+        git -C "$GKI_ROOT/KernelSU" fetch --tags origin
+        if ! git -C "$GKI_ROOT/KernelSU" rev-parse --verify "$requested_ref^{commit}" >/dev/null 2>&1; then
+            git -C "$GKI_ROOT/KernelSU" fetch origin "$requested_ref"
+        fi
+        if ! git -C "$GKI_ROOT/KernelSU" rev-parse --verify "$requested_ref^{commit}" >/dev/null 2>&1; then
+            echo "[ERROR] Requested NyaSU ref does not resolve to a commit: $requested_ref" >&2
+            exit 1
+        fi
+        git -C "$GKI_ROOT/KernelSU" checkout --detach "$requested_ref"
     else
-        git checkout "$1" && echo "[-] Checked out $1." || echo "[-] Checkout default branch"
+        git -C "$GKI_ROOT/KernelSU" remote update --prune
+        default_branch=$(git -C "$GKI_ROOT/KernelSU" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##' || true)
+        if [ -z "$default_branch" ]; then
+            default_branch=$(git -C "$GKI_ROOT/KernelSU" ls-remote --symref origin HEAD | awk '$1 == "ref:" {sub("refs/heads/", "", $2); print $2; exit}')
+        fi
+        if [ -z "$default_branch" ]; then
+            echo "[ERROR] Cannot determine NyaSU default branch." >&2
+            exit 1
+        fi
+        git -C "$GKI_ROOT/KernelSU" fetch origin "$default_branch"
+        git -C "$GKI_ROOT/KernelSU" checkout --detach FETCH_HEAD
     fi
-    cd "$DRIVER_DIR"
-    ln -sf "$(realpath --relative-to="$DRIVER_DIR" "$GKI_ROOT/KernelSU/kernel")" "kernelsu" && echo "[+] Symlink created."
 
-    # Add entries in Makefile and Kconfig if not already existing
-    grep -q "kernelsu" "$DRIVER_MAKEFILE" || printf "\nobj-\$(CONFIG_KSU) += kernelsu/\n" >> "$DRIVER_MAKEFILE" && echo "[+] Modified Makefile."
-    grep -q "source \"drivers/kernelsu/Kconfig\"" "$DRIVER_KCONFIG" || sed -i "/endmenu/i\source \"drivers/kernelsu/Kconfig\"" "$DRIVER_KCONFIG" && echo "[+] Modified Kconfig."
-    echo '[+] Done.'
+    if [ ! -f "$GKI_ROOT/KernelSU/kernel/Kbuild" ] || [ ! -f "$GKI_ROOT/KernelSU/kernel/Kconfig" ]; then
+        echo "[ERROR] Requested ref is missing kernel/Kbuild or kernel/Kconfig." >&2
+        exit 1
+    fi
+
+    ln -sf "$(realpath --relative-to="$DRIVER_DIR" "$GKI_ROOT/KernelSU/kernel")" "$DRIVER_DIR/kernelsu"
+    grep -qF 'obj-$(CONFIG_KSU) += kernelsu/' "$DRIVER_MAKEFILE" || printf '\nobj-$(CONFIG_KSU) += kernelsu/\n' >> "$DRIVER_MAKEFILE"
+    grep -qF 'source "drivers/kernelsu/Kconfig"' "$DRIVER_KCONFIG" || sed -i '/endmenu/i\source "drivers/kernelsu/Kconfig"' "$DRIVER_KCONFIG"
+    echo "[+] NyaSU set up at $(git -C "$GKI_ROOT/KernelSU" rev-parse HEAD)."
 }
 
-# Process command-line arguments
-if [ "$#" -eq 0 ]; then
-    initialize_variables
-    setup_kernelsu
-elif [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+if [ "$#" -eq 1 ] && { [ "$1" = "-h" ] || [ "$1" = "--help" ]; }; then
     display_usage
-elif [ "$1" = "--cleanup" ]; then
+elif [ "$#" -eq 1 ] && [ "$1" = "--cleanup" ]; then
     initialize_variables
     perform_cleanup
-else
+elif [ "$#" -le 1 ]; then
     initialize_variables
-    setup_kernelsu "$@"
+    setup_nyasu "${1-}"
+else
+    display_usage >&2
+    exit 2
 fi
