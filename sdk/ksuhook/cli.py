@@ -38,7 +38,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
             problems.append(f"{plan.target}: kernel/ 中找不到函数定义")
     for module in modules:
         if module.patches_dir is not None:
-            print(f"note: {module.id} 提供 patches/，当前版本不处理（预留）")
+            print(f"note: {module.id} 提供 patches/，由编排器在构建期应用；validate 不处理")
     if problems:
         for problem in problems:
             print(f"error: {problem}", file=sys.stderr)

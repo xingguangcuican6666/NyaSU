@@ -13,6 +13,7 @@ ksuhook/            # SDK 本体（纯 Python，标准库 + pytest）
   patch.py          # 生成 unified diff
   devkit.py         # 模块单测环境
   cli.py            # 命令行入口
+  orchestrator.py   # 构建期编排：模块克隆、依赖分组、worktree 打补丁与合并
 devkit/shim/        # 主机侧内核头文件替身（只用于单测）
 examples/uid_audit/ # 示例注入包
 tests/              # pytest

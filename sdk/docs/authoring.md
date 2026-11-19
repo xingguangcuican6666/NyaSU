@@ -122,4 +122,4 @@ git apply -p1 dist/my.patch
 - [ ] `dev` 全部通过
 - [ ] `generate` 产出的补丁 `git apply --check` 无冲突
 - [ ] 没有修改 `src/` 之外的内核文件；没有触碰上游 mainline 代码
-- [ ] 若提供了 `patches/`，确认当前 SDK 版本不读取它（仅预留）
+- [ ] 若提供了 `patches/`，其路径以 `KERNEL_ROOT` 为根（如 `KernelSU/kernel/foo.c`、`common/...`）

@@ -7,10 +7,10 @@
       hooks.toml         # hook 声明
       src/*.c            # C 载荷
       tests/             # 模块单测（devkit 使用）
-      patches/           # 预留：按内核版本分化的源码补丁（当前不使用）
+      patches/           # 可选：按内核版本分化的源码补丁（由编排器消费）
 
-`patches/<kernel-line>/` 目录结构在这里不做解析，只校验其存在性，
-为后续"针对真内核源码的定制"留出位置。
+`patches/<android>-<kernel>/` 目录结构在这里不做解析，只校验其存在性；
+具体补丁由 `ksuhook.orchestrator` 在构建期读取并应用。
 """
 
 from __future__ import annotations
@@ -81,7 +81,7 @@ class Module:
     sources: tuple[Path, ...]
     patches_dir: Path | None
     tests_dir: Path | None
-    # 可选依赖：构建期编排方（如 ABK）据此分组；SDK 自身不强制依赖存在。
+    # 可选依赖：构建期编排器（ksuhook.orchestrator）据此分组；SDK 自身不强制依赖存在。
     depends: tuple[str, ...] = ()
     raw: dict[str, Any] = field(default=None, repr=False)  # type: ignore[assignment]
 

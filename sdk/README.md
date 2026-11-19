@@ -18,14 +18,45 @@ SDK 收集、合并多个模块的声明，产出 `.patch`，由构建流程 `gi
 
 ```bash
 cd sdk
+python3 -m pytest -q
 python3 -m ksuhook validate --repo .. --packs examples
 python3 -m ksuhook plan     --repo .. --packs examples
 python3 -m ksuhook generate --repo .. --packs examples --out dist/ksu-sdkgen.patch
 python3 -m ksuhook dev      --packs examples
-python3 -m pytest -q
 ```
 
 `generate` 的产物在 GKI 树根执行 `git apply -p1 dist/ksu-sdkgen.patch` 即可。
+
+## 构建编排（多工作区 patch）
+
+构建期把多个模块仓库组合成一次构建时，用编排器 `ksuhook/orchestrator.py`，
+而不是手工逐个 `git apply`。它做四件事：
+
+1. `clone`：解析 `|` 分隔的 `repo_url[@ref]`，克隆到 `patch_module_NN-<name>` 并写 TSV 清单。
+2. `apply`：按 `module.prop` 的 `depends` 求连通分量分组，每组在同一 base 提交上建
+   git worktree，应用模块 `patches/<android>-<kernel>/*.patch`。
+3. 各组 diff 依次合并进集成 worktree；冲突直接失败，活树不动。
+4. 合并后的 KernelSU 树跑一次 `ksuhook generate`，校验通过后整体回填活树。
+
+```bash
+# ① 克隆模块（输入也可来自 ABK_INPUT_PATCH_MODULES）
+python3 -m ksuhook.orchestrator clone \
+  --modules 'https://github.com/me/module-a.git|https://github.com/me/module-b.git@v1' \
+  --dest /tmp/nyasu-work --manifest /tmp/nyasu-work/patch_modules.tsv
+
+# ② 应用并生成
+python3 -m ksuhook.orchestrator apply \
+  --manifest /tmp/nyasu-work/patch_modules.tsv \
+  --kernel-root /path/to/gki \
+  --sdk /path/to/NyaSU/sdk \
+  --android-version android14 --kernel-version 6.1 \
+  --workroot /tmp/nyasu-patch-work \
+  --manager-cert-size 1407 \
+  --manager-cert-sha256 34e5e843952277759603cd0f949770b24c868530d80d7baeff08776a7e132b16
+```
+
+ABK 工作流通过 `.github/scripts/kernel-patcher.py` 调用这里；该文件只是转发入口，
+`NYASU_SDK_DIR` 指向检出后的 SDK。
 
 ## 产物长什么样
 

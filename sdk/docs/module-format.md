@@ -14,13 +14,14 @@
 │   └── <name>.h     # 可选；有头文件时会 include 进生成的包装
 ├── tests/           # 模块单测（可选，`ksuhook dev` 会编译运行）
 │   └── *.c          # 第一个文件需提供 main()
-├── patches/         # 预留：按内核版本分化的源码补丁
-│   └── <kernel-line>/   # 例如 android14-6.1；当前版本只识别、不处理
+├── patches/         # 可选：按内核版本分化的源码补丁（由编排器消费）
+│   └── <android>-<kernel>/   # 例如 android14-6.1
 └── docs/            # 可选说明
 ```
 
-`patches/` 是为后续"针对真内核源码的定制"预留的位置。当前版本只检查它是否存在，
-生成时会打印提示，不读取内容。
+`patches/` 供构建编排器使用：`ksuhook.orchestrator apply` 会读取
+`patches/<android>-<kernel>/` 下的 `*.patch` / `*.diff`，自 `depends` 连通的每个分组
+各自在独立 worktree 中应用。SDK 的 `validate` / `generate` 本身不读取它。
 
 ## `module.prop`
 
@@ -35,7 +36,7 @@
 | `priority` | | 整数，默认 `50`；**越大越先执行** |
 | `description` | | 说明 |
 | `author` | | 作者 |
-| `depends` | | 逗号分隔的模块 id 列表；仅供构建期编排方（如 ABK）分组，SDK 只校验格式 |
+| `depends` | | 逗号分隔的模块 id 列表；由构建期编排器 `ksuhook.orchestrator` 据此分组，SDK 的 `validate`/`generate` 只校验格式 |
 
 ## `hooks.toml`
 
@@ -74,6 +75,8 @@ order  = 10                         # 越小越先执行，默认 100
 自行定义强符号 `struct task_struct *ksuhook_current`（弱符号桩已提供）。
 
 ## 生成物
+
+编排器在合并后的 KernelSU 树上用 SDK 生成一次补丁：
 
 ```bash
 python3 -m ksuhook generate --repo /path/to/KernelSU --packs modules/ --out ksu-sdkgen.patch
